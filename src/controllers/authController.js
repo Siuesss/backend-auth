@@ -1,10 +1,10 @@
-import { registerUser, loginUser } from '../services/authService.js';
+import { register, login, changepassword } from '../services/authService.js';
 
-export async function register(req, res) {
+const registerHandler = async(req, res) => {
   const { name, email, password } = req.body;
   try {
     console.log('Received registration request:', req.body);
-    const user = await registerUser(name, email, password);
+    const user = await register(name, email, password);
     res.status(201).json({ message: 'User registered successfully' });
   } catch (error) {
     console.error('Error in register controller:', error);
@@ -12,10 +12,10 @@ export async function register(req, res) {
   }
 }
 
-export async function login(req, res) {
+const loginHandler = async (req, res) => {
   const { email, password } = req.body;
   try {
-    const user = await loginUser(email, password);
+    const user = await login(email, password);
     req.session.userId = user.id;
     res.status(200).json({ message: 'Login successful' });
   } catch (error) {
@@ -24,7 +24,7 @@ export async function login(req, res) {
   }
 }
 
-export function logout(req, res) {
+const logoutHandler = async (req, res) => {
   req.session.destroy(err => {
     if (err) {
       console.error('Error in logout controller:', err);
@@ -33,3 +33,38 @@ export function logout(req, res) {
     res.status(200).json({ message: 'Logout successful' });
   });
 }
+
+const changepasswordHandler = async (req, res) => {
+  const { oldPassword, newPassword } = req.body;
+  const { userId } = req.session;
+
+  if (!userId) {
+    res.status(401).json({ message: 'Unauthorized' });
+    return;
+  }
+
+  if(!oldPassword && !newPassword){
+    res.status(400).json({ message: 'Old password and new password are required' });
+    return;
+  }
+
+  if (newPassword.length < 4) {
+    res.status(400).json({ message: 'Password minimal 4 karakter' });
+    return;
+  }
+
+  try {
+    const result = await changepassword(userId, oldPassword, newPassword);
+    res.status(200).json(result);
+  } catch (error) {
+    if(error.message === "Password incorrect"){
+      res.status(400).json({ message: 'Password incorrect' });
+    }else if(error.message === "Password change limit exceeded for today"){
+      res.status(400).json({message: "Password change limit exceeded for today"});
+    } else {
+      res.status(500).json({ error: error.message });
+    }
+  }
+}
+
+export {registerHandler, logoutHandler, loginHandler, changepasswordHandler}
